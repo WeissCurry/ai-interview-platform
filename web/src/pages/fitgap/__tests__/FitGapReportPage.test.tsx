@@ -1,7 +1,7 @@
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import FitGapReportPage from "../FitGapReportPage";
+import FitGapReportPage, { isReportStale } from "../FitGapReportPage";
 import { portfoliosApi } from "@/services/portfolios";
 import { sessionsApi } from "@/services/sessions";
 import type { FitGapReport, Portfolio } from "@/types";
@@ -31,7 +31,12 @@ const report: FitGapReport = {
   skill_comparisons: [{ skill_label: "Ruby on Rails", required_level: 3, candidate_level: 3, result: "match", delta: 0 }],
   culture_narrative: "Collaborative and direct.",
   overall_narrative: "Recommend a second round.",
+  generated_at: "2026-10-20T10:00:00Z",
 } as FitGapReport;
+
+const overrideAt = (overridden_at?: string) => ({
+  id: 1, portfolio_skill_id: 1, ai_level: 2, override_level: 3, assessor_notes: "", overridden_at,
+});
 
 const notFound = () => Promise.reject({ response: { status: 404 } });
 
@@ -138,5 +143,29 @@ describe("FitGapReportPage", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Your current report is unchanged");
     expect(screen.getAllByText("Ruby on Rails").length).toBeGreaterThan(0);
+  });
+
+  it("warns that the report is stale when a rating was adjusted after it was generated", async () => {
+    vi.mocked(sessionsApi.getPortfolio).mockResolvedValue({
+      data: { portfolio: { ...portfolio(), overrides: [overrideAt("2026-10-21T09:00:00Z")] } },
+    } as any);
+    vi.mocked(portfoliosApi.getFitGap).mockResolvedValue({ data: { report } } as any);
+    vi.mocked(portfoliosApi.regenerateFitGap).mockResolvedValue({ data: { status: "generating" } } as any);
+
+    renderPage();
+
+    expect(await screen.findByText(/A rating was overridden after this report was generated/)).toBeInTheDocument();
+    act(() => screen.getByRole("button", { name: "Regenerate report" }).click());
+    await waitFor(() => expect(portfoliosApi.regenerateFitGap).toHaveBeenCalledWith(7, 9));
+  });
+});
+
+describe("isReportStale", () => {
+  it("compares the newest override with the report time", () => {
+    expect(isReportStale(report, [])).toBe(false);
+    expect(isReportStale(report, [overrideAt("2026-10-19T09:00:00Z")])).toBe(false);
+    expect(isReportStale(report, [overrideAt("2026-10-19T09:00:00Z"), overrideAt("2026-10-21T09:00:00Z")])).toBe(true);
+    expect(isReportStale(report, [overrideAt(undefined)])).toBe(false);
+    expect(isReportStale({ generated_at: "" }, [overrideAt("2026-10-21T09:00:00Z")])).toBe(false);
   });
 });

@@ -1,6 +1,9 @@
+import type { ReactNode } from "react";
 import { LEVEL_LABELS, FIT_GAP_RESULT_LABELS, FIT_GAP_RESULT_CLASSES } from "@/utils/constants";
 import { cn } from "@/lib/utils";
+import { ArrowDown, ArrowUp, Check, CircleDashed, Pencil } from "lucide-react";
 import type { SkillComparison } from "@/types";
+import EmptyState from "@/components/feedback/EmptyState";
 
 interface ComparisonTableProps {
   comparisons: SkillComparison[];
@@ -18,14 +21,17 @@ function levelLabel(level: number): string {
 function OverrideMark() {
   return (
     <span
-      className="text-xs text-amber-600 bg-amber-50 rounded px-1"
+      role="img"
+      className="inline-flex items-center text-amber-700 bg-amber-50 rounded p-0.5"
       title="Human assessor override applied"
       aria-label="Human assessor override applied"
     >
-      ✏
+      <Pencil className="h-3 w-3" aria-hidden />
     </span>
   );
 }
+
+const RESULT_ICONS = { match: Check, exceed: ArrowUp, gap: ArrowDown, not_assessed: CircleDashed } as const;
 
 function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -35,29 +41,36 @@ function ResultBadge({ comparison }: { comparison: SkillComparison }) {
   const label = FIT_GAP_RESULT_LABELS[comparison.result] ?? comparison.result;
   const classes = FIT_GAP_RESULT_CLASSES[comparison.result];
 
-  let icon = "";
+  const Icon = RESULT_ICONS[comparison.result] ?? CircleDashed;
   let suffix = "";
-  if (comparison.result === "match") icon = "✅";
-  else if (comparison.result === "exceed") { icon = "⭐"; suffix = comparison.delta ? ` +${comparison.delta}` : ""; }
-  else if (comparison.result === "gap") { icon = "⚠"; suffix = comparison.delta ? ` -${Math.abs(comparison.delta)}` : ""; }
-  else icon = "—";
+  if (comparison.result === "exceed" && comparison.delta) suffix = ` +${comparison.delta}`;
+  else if (comparison.result === "gap" && comparison.delta) suffix = ` -${Math.abs(comparison.delta)}`;
 
   return (
     <span className={cn("inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium px-2 py-0.5 rounded", classes)}>
-      {icon} {label}{suffix}
+      <Icon className="h-3 w-3" aria-hidden />
+      {label}{suffix}
     </span>
+  );
+}
+
+function SummaryChip({ result, children }: { result: SkillComparison["result"]; children: ReactNode }) {
+  const Icon = RESULT_ICONS[result];
+  return (
+    <li className={cn("inline-flex items-center gap-1 rounded px-2 py-1 font-medium", FIT_GAP_RESULT_CLASSES[result])}>
+      <Icon className="h-3 w-3" aria-hidden />
+      <span>{children}</span>
+    </li>
   );
 }
 
 export default function ComparisonTable({ comparisons }: ComparisonTableProps) {
   if (comparisons.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-8 text-center space-y-1">
-        <p className="text-sm font-medium">No required skills on this vacancy</p>
-        <p className="text-xs text-muted-foreground">
-          Add skills with an expected level to the vacancy, then regenerate this report.
-        </p>
-      </div>
+      <EmptyState
+        title="No required skills on this vacancy"
+        description="Add skills with an expected level to the vacancy, then regenerate this report."
+      />
     );
   }
 
@@ -71,6 +84,19 @@ export default function ComparisonTable({ comparisons }: ComparisonTableProps) {
 
   return (
     <div className="space-y-3">
+      {/* Verdict first: the counts are what a hiring manager reads before the rows */}
+      <ul aria-label="Comparison summary" className="flex flex-wrap items-center gap-2 text-xs">
+        {matchCount > 0 && <SummaryChip result="match">Match: {plural(matchCount, "skill")}</SummaryChip>}
+        {exceedCount > 0 && <SummaryChip result="exceed">Exceeds: {plural(exceedCount, "skill")}</SummaryChip>}
+        {gapCount > 0 && <SummaryChip result="gap">Gap: {plural(gapCount, "skill")}</SummaryChip>}
+        {notAssessedCount > 0 && <SummaryChip result="not_assessed">Not assessed: {plural(notAssessedCount, "skill")}</SummaryChip>}
+        {hasOverride && (
+          <li className="inline-flex items-center gap-1.5 text-muted-foreground sm:ml-auto">
+            <OverrideMark /> Assessor override
+          </li>
+        )}
+      </ul>
+
       {/* Phones: one card per skill so long labels and badges never squeeze a 4-column table */}
       <ul aria-label="Skill comparison" className="sm:hidden divide-y rounded-lg border">
         {comparisons.map((c, i) => {
@@ -82,11 +108,11 @@ export default function ComparisonTable({ comparisons }: ComparisonTableProps) {
                 <ResultBadge comparison={c} />
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                Required {reqLevel != null ? levelLabel(reqLevel) : "—"} · Candidate{" "}
+                Required {reqLevel != null ? levelLabel(reqLevel) : "not set"} · Candidate{" "}
                 {c.candidate_level != null ? (
                   <span className="font-medium text-foreground">{levelLabel(c.candidate_level)}</span>
                 ) : (
-                  "—"
+                  "none"
                 )}
                 {(c.is_override || c.overridden) && <OverrideMark />}
               </div>
@@ -113,7 +139,7 @@ export default function ComparisonTable({ comparisons }: ComparisonTableProps) {
                 <tr key={`${c.skill_label}-${i}`} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-2.5 font-medium break-words max-w-[16rem]">{c.skill_label}</td>
                   <td className="px-4 py-2.5 text-center text-muted-foreground">
-                    {reqLevel != null ? levelLabel(reqLevel) : "—"}
+                    {reqLevel != null ? levelLabel(reqLevel) : "Not set"}
                   </td>
                   <td className="px-4 py-2.5 text-center">
                     {c.candidate_level != null ? (
@@ -122,7 +148,7 @@ export default function ComparisonTable({ comparisons }: ComparisonTableProps) {
                         {isOverridden && <OverrideMark />}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground" aria-label="No candidate level">—</span>
+                      <span className="text-muted-foreground">None</span>
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-center">
@@ -133,15 +159,6 @@ export default function ComparisonTable({ comparisons }: ComparisonTableProps) {
             })}
           </tbody>
         </table>
-      </div>
-
-      {/* Summary */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        {matchCount > 0 && <span>✅ Match: {plural(matchCount, "skill")}</span>}
-        {gapCount > 0 && <span>⚠ Gap: {plural(gapCount, "skill")}</span>}
-        {exceedCount > 0 && <span>⭐ Exceeds: {plural(exceedCount, "skill")}</span>}
-        {notAssessedCount > 0 && <span>— Not assessed: {plural(notAssessedCount, "skill")}</span>}
-        {hasOverride && <span className="sm:ml-auto">✏ = human override applied</span>}
       </div>
 
       {notAssessedCount > 0 && (

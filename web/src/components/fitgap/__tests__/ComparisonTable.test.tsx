@@ -46,8 +46,8 @@ describe("ComparisonTable Component", () => {
     const requiredLevels = table().getAllByText("L3");
     expect(requiredLevels.length).toBeGreaterThanOrEqual(1);
 
-    // Check human override indicator ✏ is displayed for overridden skill
-    expect(table().getByText("✏")).toBeInTheDocument();
+    // Check human override indicator is displayed for overridden skill
+    expect(table().getByLabelText("Human assessor override applied")).toBeInTheDocument();
 
     // Check summary section
     expect(screen.getByText(/Match: 1 skill/i)).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe("ComparisonTable Component", () => {
     expect(requiredLevelOf({ skill_label: "a", result: "gap" })).toBeUndefined();
   });
 
-  it("renders a dash instead of crashing when the required level is missing or out of range", () => {
+  it("renders Not set instead of crashing when the required level is missing or out of range", () => {
     render(
       <ComparisonTable
         comparisons={[
@@ -83,7 +83,7 @@ describe("ComparisonTable Component", () => {
       />,
     );
 
-    expect(rowFor("No level").querySelectorAll("td")[1]).toHaveTextContent("—");
+    expect(rowFor("No level").querySelectorAll("td")[1]).toHaveTextContent("Not set");
     expect(rowFor("Odd level").querySelectorAll("td")[1]).toHaveTextContent("L7");
   });
 
@@ -91,7 +91,7 @@ describe("ComparisonTable Component", () => {
     render(<ComparisonTable comparisons={[{ skill_label: "Kubernetes", required_level: 2, result: "not_assessed" }]} />);
 
     expect(rowFor("Kubernetes")).toHaveTextContent("Not assessed");
-    expect(screen.getByText(/Not assessed: 1 skill$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Not assessed: 1 skill$/)).toBeInTheDocument();
     expect(screen.getByText(/It is not counted as a gap/)).toBeInTheDocument();
     expect(screen.queryByText(/Gap:/)).not.toBeInTheDocument();
   });
@@ -101,11 +101,11 @@ describe("ComparisonTable Component", () => {
       <ComparisonTable comparisons={[{ skill_label: "Go", required_level: 3, candidate_level: 3, result: "match", overridden: true }]} />,
     );
     expect(table().getByLabelText("Human assessor override applied")).toBeInTheDocument();
-    expect(screen.getByText(/human override applied/)).toBeInTheDocument();
+    expect(screen.getByText(/Assessor override/)).toBeInTheDocument();
 
     rerender(<ComparisonTable comparisons={[{ skill_label: "Go", required_level: 3, candidate_level: 3, result: "match" }]} />);
     expect(screen.queryByLabelText("Human assessor override applied")).not.toBeInTheDocument();
-    expect(screen.queryByText(/human override applied/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Assessor override/)).not.toBeInTheDocument();
   });
 
   it("keeps very long skill labels intact", () => {
@@ -131,7 +131,7 @@ describe("ComparisonTable Component", () => {
     expect(items[0]).toHaveTextContent("Required L4 · Candidate L3");
     expect(items[0]).toHaveTextContent("Gap -1");
     expect(within(items[0]).getByLabelText("Human assessor override applied")).toBeInTheDocument();
-    expect(items[1]).toHaveTextContent("Candidate —");
+    expect(items[1]).toHaveTextContent("Candidate none");
     expect(items[1]).toHaveTextContent("Not assessed");
   });
 
