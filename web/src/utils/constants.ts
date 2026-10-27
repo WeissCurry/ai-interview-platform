@@ -29,11 +29,11 @@ export const LEVEL_DESCRIPTIONS: Record<number, string> = {
 
 // L-badge colors (Tailwind classes)
 export const LEVEL_BADGE_CLASSES: Record<number, string> = {
-  1: "bg-neutral-200 text-neutral-700",
-  2: "bg-blue-100 text-blue-700",
-  3: "bg-teal-100 text-teal-700",
-  4: "bg-purple-100 text-purple-700",
-  5: "bg-yellow-100 text-yellow-700",
+  1: "bg-neutral-100 text-neutral-700",
+  2: "bg-teal-50 text-teal-800 ring-1 ring-inset ring-teal-100",
+  3: "bg-teal-100 text-teal-900",
+  4: "bg-teal-200 text-teal-950",
+  5: "bg-teal-700 text-white",
 };
 
 // Coverage state display
