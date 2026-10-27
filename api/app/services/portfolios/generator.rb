@@ -150,31 +150,70 @@ module Portfolios
     def save_skills(portfolio, response)
       data = response.is_a?(Hash) ? response : JSON.parse(response)
 
+      # Cache existing overrides so human assessor evaluations are not lost during regeneration
+      existing_overrides = {}
+      portfolio.portfolio_skills.includes(:assessor_override).each do |ps|
+        if ps.assessor_override
+          key = ps.skill_id.presence || ps.skill_label.downcase
+          existing_overrides[key] = {
+            override_level: ps.assessor_override.override_level,
+            assessor_notes: ps.assessor_override.assessor_notes,
+            overridden_by:  ps.assessor_override.overridden_by,
+            overridden_at:  ps.assessor_override.overridden_at
+          }
+        end
+      end
+
       # Destroy existing skills (idempotent regeneration)
       portfolio.portfolio_skills.destroy_all
 
       (data['configured_skills'] || []).each do |skill_data|
-        portfolio.portfolio_skills.create!(
+        skill = portfolio.portfolio_skills.create!(
           skill_id:           skill_data['skill_id'],
           skill_label:        skill_data['skill_label'],
           is_discovered:      false,
-          ai_level:           skill_data['level'].to_i.clamp(1, 5),
-          ai_confidence:      skill_data['confidence'],
+          ai_level:           (skill_data['level'] || 1).to_i.clamp(1, 5),
+          ai_confidence:      PortfolioSkill::CONFIDENCE_LEVELS.include?(skill_data['confidence']) ? skill_data['confidence'] : 'low',
           evidence:           Array(skill_data['evidence']).first(3),
-          competency_summary: skill_data['competency_summary']
+          competency_summary: skill_data['competency_summary'].presence || "Competency evaluation generated based on interview turns."
         )
+
+        # Restore override if previously saved
+        key = skill.skill_id.presence || skill.skill_label.downcase
+        if existing_overrides[key]
+          ov = existing_overrides[key]
+          skill.create_assessor_override!(
+            ai_level:       skill.ai_level,
+            override_level: ov[:override_level],
+            assessor_notes: ov[:assessor_notes],
+            overridden_by:  ov[:overridden_by],
+            overridden_at:  ov[:overridden_at]
+          )
+        end
       end
 
       (data['discovered_skills'] || []).each do |skill_data|
-        portfolio.portfolio_skills.create!(
+        skill = portfolio.portfolio_skills.create!(
           skill_id:           nil,
           skill_label:        skill_data['skill_label'],
           is_discovered:      true,
-          ai_level:           skill_data['level'].to_i.clamp(1, 5),
-          ai_confidence:      skill_data['confidence'],
+          ai_level:           (skill_data['level'] || 1).to_i.clamp(1, 5),
+          ai_confidence:      PortfolioSkill::CONFIDENCE_LEVELS.include?(skill_data['confidence']) ? skill_data['confidence'] : 'low',
           evidence:           Array(skill_data['evidence']).first(3),
-          competency_summary: skill_data['competency_summary']
+          competency_summary: skill_data['competency_summary'].presence || "Discovered competency evaluation based on candidate responses."
         )
+
+        key = skill.skill_label.downcase
+        if existing_overrides[key]
+          ov = existing_overrides[key]
+          skill.create_assessor_override!(
+            ai_level:       skill.ai_level,
+            override_level: ov[:override_level],
+            assessor_notes: ov[:assessor_notes],
+            overridden_by:  ov[:overridden_by],
+            overridden_at:  ov[:overridden_at]
+          )
+        end
       end
     end
   end
