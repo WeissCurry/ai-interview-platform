@@ -26,4 +26,8 @@ vertex_ai_credentials.json
 
 
 # Ignore Public Docs
-/tech-docsspec/examples.txt
+/tech-docs
+
+# RSpec --only-failures state
+spec/examples.txt
+
