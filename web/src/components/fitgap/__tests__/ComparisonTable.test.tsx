@@ -1,9 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import ComparisonTable, { requiredLevelOf } from "../ComparisonTable";
 import type { SkillComparison } from "@/types";
 
-const rowFor = (label: string) => screen.getByText(label).closest("tr")!;
+// jsdom ignores CSS, so both the desktop table and the phone list render; scope to one.
+const table = () => within(screen.getByRole("table"));
+const list = () => within(screen.getByRole("list", { name: "Skill comparison" }));
+const rowFor = (label: string) => table().getByText(label).closest("tr")!;
 
 describe("ComparisonTable Component", () => {
   it("renders comparisons with expected_level or required_level correctly", () => {
@@ -34,17 +37,17 @@ describe("ComparisonTable Component", () => {
     render(<ComparisonTable comparisons={mockComparisons} />);
 
     // Check skill labels rendered
-    expect(screen.getByText("React / Frontend Development")).toBeInTheDocument();
-    expect(screen.getByText("System Design")).toBeInTheDocument();
-    expect(screen.getByText("Communication")).toBeInTheDocument();
+    expect(table().getByText("React / Frontend Development")).toBeInTheDocument();
+    expect(table().getByText("System Design")).toBeInTheDocument();
+    expect(table().getByText("Communication")).toBeInTheDocument();
 
     // Check required/expected level rendered (L3, L4, L3)
-    expect(screen.getByText("L4")).toBeInTheDocument();
-    const requiredLevels = screen.getAllByText("L3");
+    expect(table().getByText("L4")).toBeInTheDocument();
+    const requiredLevels = table().getAllByText("L3");
     expect(requiredLevels.length).toBeGreaterThanOrEqual(1);
 
     // Check human override indicator ✏ is displayed for overridden skill
-    expect(screen.getByText("✏")).toBeInTheDocument();
+    expect(table().getByText("✏")).toBeInTheDocument();
 
     // Check summary section
     expect(screen.getByText(/Match: 1 skill/i)).toBeInTheDocument();
@@ -97,7 +100,7 @@ describe("ComparisonTable Component", () => {
     const { rerender } = render(
       <ComparisonTable comparisons={[{ skill_label: "Go", required_level: 3, candidate_level: 3, result: "match", overridden: true }]} />,
     );
-    expect(screen.getByLabelText("Human assessor override applied")).toBeInTheDocument();
+    expect(table().getByLabelText("Human assessor override applied")).toBeInTheDocument();
     expect(screen.getByText(/human override applied/)).toBeInTheDocument();
 
     rerender(<ComparisonTable comparisons={[{ skill_label: "Go", required_level: 3, candidate_level: 3, result: "match" }]} />);
@@ -109,7 +112,27 @@ describe("ComparisonTable Component", () => {
     const longLabel = "Distributed systems design for multi-region payment reconciliation ".repeat(4).trim();
     render(<ComparisonTable comparisons={[{ skill_label: longLabel, required_level: 3, result: "not_assessed" }]} />);
 
-    expect(screen.getByText(longLabel)).toHaveClass("break-words");
+    expect(table().getByText(longLabel)).toHaveClass("break-words");
+    expect(list().getByText(longLabel)).toHaveClass("break-words");
+  });
+
+  it("renders the same data in the phone layout", () => {
+    render(
+      <ComparisonTable
+        comparisons={[
+          { skill_label: "System Design", required_level: 4, candidate_level: 3, result: "gap", delta: -1, is_override: true },
+          { skill_label: "Kubernetes", required_level: 2, result: "not_assessed" },
+        ]}
+      />,
+    );
+
+    const items = list().getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("System Design");
+    expect(items[0]).toHaveTextContent("Required L4 · Candidate L3");
+    expect(items[0]).toHaveTextContent("Gap -1");
+    expect(within(items[0]).getByLabelText("Human assessor override applied")).toBeInTheDocument();
+    expect(items[1]).toHaveTextContent("Candidate —");
+    expect(items[1]).toHaveTextContent("Not assessed");
   });
 
   it("shows an empty state for a vacancy without skills", () => {

@@ -8,6 +8,7 @@ import ComparisonTable from "@/components/fitgap/ComparisonTable";
 import { portfoliosApi } from "@/services/portfolios";
 import { sessionsApi } from "@/services/sessions";
 import { usePolling } from "@/hooks/usePolling";
+import { LEVEL_LABELS, parseLevel } from "@/utils/constants";
 import { AlertTriangle, ArrowLeft, Download, Loader2, RefreshCw, Zap } from "lucide-react";
 import type { FitGapReport, Portfolio } from "@/types";
 
@@ -288,7 +289,7 @@ export default function FitGapReportPage() {
                       <div key={s.id} className="text-sm flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span className="font-medium">{s.skill_label}</span>
                         <span className="text-muted-foreground">
-                          {s.ai_level} ({s.ai_confidence?.toLowerCase() === "low" ? "low confidence" : "confirmed"})
+                          {LEVEL_LABELS[parseLevel(s.ai_level)]} ({s.ai_confidence?.toLowerCase() === "low" ? "low confidence" : "confirmed"})
                         </span>
                         <span className="text-xs text-muted-foreground">— Not required for this role, may be additive.</span>
                       </div>

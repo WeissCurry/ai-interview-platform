@@ -15,6 +15,18 @@ function levelLabel(level: number): string {
   return LEVEL_LABELS[level] ?? `L${level}`;
 }
 
+function OverrideMark() {
+  return (
+    <span
+      className="text-xs text-amber-600 bg-amber-50 rounded px-1"
+      title="Human assessor override applied"
+      aria-label="Human assessor override applied"
+    >
+      ✏
+    </span>
+  );
+}
+
 function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
@@ -59,8 +71,32 @@ export default function ComparisonTable({ comparisons }: ComparisonTableProps) {
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[480px] text-sm">
+      {/* Phones: one card per skill so long labels and badges never squeeze a 4-column table */}
+      <ul aria-label="Skill comparison" className="sm:hidden divide-y rounded-lg border">
+        {comparisons.map((c, i) => {
+          const reqLevel = requiredLevelOf(c);
+          return (
+            <li key={`${c.skill_label}-${i}`} className="p-3 space-y-1.5">
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-sm font-medium break-words min-w-0">{c.skill_label}</span>
+                <ResultBadge comparison={c} />
+              </div>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                Required {reqLevel != null ? levelLabel(reqLevel) : "—"} · Candidate{" "}
+                {c.candidate_level != null ? (
+                  <span className="font-medium text-foreground">{levelLabel(c.candidate_level)}</span>
+                ) : (
+                  "—"
+                )}
+                {(c.is_override || c.overridden) && <OverrideMark />}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden sm:block overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="text-left px-4 py-2.5 font-medium">Skill</th>
@@ -83,18 +119,10 @@ export default function ComparisonTable({ comparisons }: ComparisonTableProps) {
                     {c.candidate_level != null ? (
                       <span className="inline-flex items-center gap-1 font-medium">
                         {levelLabel(c.candidate_level)}
-                        {isOverridden && (
-                          <span
-                            className="text-xs text-amber-600 bg-amber-50 rounded px-1"
-                            title="Human assessor override applied"
-                            aria-label="Human assessor override applied"
-                          >
-                            ✏
-                          </span>
-                        )}
+                        {isOverridden && <OverrideMark />}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground italic">Not assessed</span>
+                      <span className="text-muted-foreground" aria-label="No candidate level">—</span>
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-center">

@@ -60,7 +60,7 @@ describe("FitGapReportPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Ruby on Rails")).toBeInTheDocument();
+    expect((await screen.findAllByText("Ruby on Rails"))[0]).toBeInTheDocument();
     expect(screen.getByText("Collaborative and direct.")).toBeInTheDocument();
     expect(portfoliosApi.triggerFitGap).not.toHaveBeenCalled();
   });
@@ -123,7 +123,7 @@ describe("FitGapReportPage", () => {
 
     act(() => screen.getByRole("button", { name: "Try again" }).click());
 
-    await waitFor(() => expect(screen.getByText("Ruby on Rails")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Ruby on Rails").length).toBeGreaterThan(0));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -132,11 +132,11 @@ describe("FitGapReportPage", () => {
     vi.mocked(portfoliosApi.regenerateFitGap).mockRejectedValue(new Error("500"));
 
     renderPage();
-    await screen.findByText("Ruby on Rails");
+    await screen.findAllByText("Ruby on Rails");
 
     act(() => screen.getByRole("button", { name: /Regenerate/ }).click());
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Your current report is unchanged");
-    expect(screen.getByText("Ruby on Rails")).toBeInTheDocument();
+    expect(screen.getAllByText("Ruby on Rails").length).toBeGreaterThan(0);
   });
 });
