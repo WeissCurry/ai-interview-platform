@@ -8,7 +8,7 @@ interface ComparisonTableProps {
 
 /** Reports generated before the payload fix only carry `expected_level`. */
 export function requiredLevelOf(c: SkillComparison): number | undefined {
-  return c.expected_level; // SEEDED FAULT: ignores required_level
+  return c.required_level ?? c.expected_level;
 }
 
 function levelLabel(level: number): string {
