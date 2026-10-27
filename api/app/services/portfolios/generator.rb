@@ -166,7 +166,7 @@ module Portfolios
       unprobed = unprobed_skill_keys
 
       # requires_new: roll back via a savepoint even when called inside an outer transaction
-      ActiveRecord::Base.transaction(requires_new: true) do
+      begin # SEEDED FAULT: transaction removed
         existing_overrides = snapshot_overrides(portfolio)
 
         # Destroy existing skills (idempotent regeneration)
